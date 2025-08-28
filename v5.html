@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Interactive Content Library Prototype</title>
   <style>
     /* --- Base Styles --- */
@@ -54,11 +54,6 @@
       background-color: var(--hover-bg);
     }
     
-    /* --- File Upload --- */
-    .file-upload {
-      margin-bottom: 1rem;
-    }
-
     /* --- Collapsible Filter Bar --- */
     .filter-bar {
       display: flex;
@@ -178,11 +173,6 @@
         <button class="reset-btn" id="reset-btn">Reset All</button>
       </div>
 
-      <!-- File Upload for .md files -->
-      <div class="file-upload">
-        <input type="file" id="md-upload" accept=".md" multiple webkitdirectory directory />
-      </div>
-
       <!-- Collapsible Filter Bar -->
       <div class="filter-bar" id="filter-bar">
         <span>Filters</span>
@@ -203,8 +193,17 @@
           <div id="source-filters"></div>
         </div>
       </div>
-
-      <!-- Data Table -->
+      <div class="filter-group">
+  <h4>Review Date</h4>
+  <label>
+    From:
+    <input type="date" id="date-from">
+  </label>
+  <label>
+    To:
+    <input type="date" id="date-to">
+  </label>
+</div>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -241,7 +240,14 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      let tableData = [];
+      const tableData = [
+        { title: "New Discovery Dianasour", category: "History", tags: ["Dinasours", "Etc"], reviewDate: "2025-08-27", postedDate: "2022-09-01", source: "Youtube", channel: "History Times", postLink: "#", sourceLink: "https://youtube.com/xyz" },
+        { title: "AI Revolution", category: "Technology", tags: ["AI", "Etc"], reviewDate: "2025-08-24", postedDate: "2023-10-10", source: "News", channel: "Tech News Hub", postLink: "#", sourceLink: "https://news.com/abcnews" },
+        { title: "How Women Think", category: "Relationships", tags: ["Women", "Etc"], reviewDate: "2025-08-22", postedDate: "2024-01-01", source: "Youtube", channel: "Women Guide", postLink: "#", sourceLink: "https://youtube.com/xyzwomen" },
+        { title: "How Economy Works", category: "Economy", tags: ["Economy", "Other"], reviewDate: "2025-08-20", postedDate: "2021-09-15", source: "Youtube", channel: "Ray Dalio", postLink: "#", sourceLink: "https://youtube.com/xyzraydalio" },
+        { title: "Investing Tips", category: "Finance", tags: ["Investing", "Budgeting"], reviewDate: "2025-08-15", postedDate: "2025-08-15", source: "Blog", channel: "Investing Tips", postLink: "#", sourceLink: "https://investingtips.com/abparticle" }
+        // Add more sample items if desired for testing pagination
+      ];
 
       const tableBody = document.getElementById('data-table-body');
       const filtersContainer = document.getElementById('filters-container');
@@ -251,55 +257,30 @@
       const resetBtn = document.getElementById('reset-btn');
       const pageControls = document.getElementById('page-controls');
       const pageSizeSelect = document.getElementById('page-size');
-
+      
       let currentSort = { key: null, order: 'asc' };
       let currentPage = 1;
       let pageSize = parseInt(pageSizeSelect.value);
 
-      // SVG Icons
+      // --- SVG Icons ---
       const sourceIcons = {
         Youtube: `<svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="red" viewBox="0 0 24 24"><path d="M23.5 6.2a2.98 2.98 0 0 0-2.1-2.1C19 3.5 12 3.5 12 3.5s-7 0-9.4.6a2.98 2.98 0 0 0-2.1 2.1A31.86 31.86 0 0 0 0 12a31.86 31.86 0 0 0 .5 5.8 2.98 2.98 0 0 0 2.1 2.1C5 20.5 12 20.5 12 20.5s7 0 9.4-.6a2.98 2.98 0 0 0 2.1-2.1A31.86 31.86 0 0 0 24 12a31.86 31.86 0 0 0-.5-5.8zM9.8 15.3V8.7l6.4 3.3-6.4 3.3z"></path></svg>`,
         News: `<svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M21 6h-3V2H6v4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM8 4h8v2H8V4zm13 16H3V8h2v10h14V8h2v12z"></path><rect x="11" y="10" width="6" height="2"/><rect x="11" y="14" width="6" height="2"/><rect x="7" y="10" width="2" height="2"/><rect x="7" y="14" width="2" height="2"/></svg>`,
         Blog: `<svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="brown" viewBox="0 0 24 24"><path d="M4 22h16v-2H4v2zm0-4h10v-2H4v2zm0-4h16v-2H4v2zm0-4h10V8H4v2zm0-8v2h16V2H4z"/></svg>`
       };
 
-      function extractTitle(mdText, fileName) {
-        const match = mdText.match(/^#\s+(.*)$/m);
-        return match ? match[1].trim() : fileName.replace('.md','');
-      }
-
-      function parseFrontmatter(mdText) {
-        const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-        const match = mdText.match(frontmatterRegex);
-        if (!match) return {};
-        const yamlText = match[1];
-
-        const lines = yamlText.split('\n');
-        const metadata = {};
-        lines.forEach(line => {
-          const colonIndex = line.indexOf(':');
-          if (colonIndex > -1) {
-            const key = line.slice(0, colonIndex).trim();
-            let value = line.slice(colonIndex + 1).trim();
-
-            if (key.toLowerCase() === 'tags') {
-              value = value.split(',').map(t => t.trim());
-            }
-            metadata[key] = value;
-          }
-        });
-        return metadata;
-      }
-
-      // Render Table Rows
+      // --- Render Table Rows ---
       function renderTable(data) {
         tableBody.innerHTML = '';
         if (data.length === 0) {
           tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No results found</td></tr>`;
           return;
         }
+
+        // Pagination Slice
         const startIndex = (currentPage - 1) * pageSize;
         const pageData = data.slice(startIndex, startIndex + pageSize);
+
         pageData.forEach(item => {
           const tr = document.createElement('tr');
           const icon = sourceIcons[item.source] || '';
@@ -318,20 +299,23 @@
           `;
           tableBody.appendChild(tr);
         });
+
         renderPagination(data.length);
       }
 
-      // Pagination Controls
+      // --- Pagination Controls ---
       function renderPagination(totalItems) {
         pageControls.innerHTML = '';
         const totalPages = Math.ceil(totalItems / pageSize);
-      
+        
+        // Prev Button
         const prevBtn = document.createElement('button');
         prevBtn.textContent = "Prev";
         prevBtn.disabled = currentPage === 1;
         prevBtn.onclick = () => { currentPage--; applyAll(); };
         pageControls.appendChild(prevBtn);
 
+        // Page Numbers
         for(let i=1; i<= totalPages; i++){
           const btn = document.createElement('button');
           btn.textContent = i;
@@ -340,6 +324,7 @@
           pageControls.appendChild(btn);
         }
 
+        // Next Button
         const nextBtn = document.createElement('button');
         nextBtn.textContent = "Next";
         nextBtn.disabled = currentPage === totalPages;
@@ -347,7 +332,7 @@
         pageControls.appendChild(nextBtn);
       }
 
-      // Populate Filters
+      // --- Populate Filters ---
       function populateFilters() {
         const categories = [...new Set(tableData.map(item => item.category))];
         const tags = [...new Set(tableData.flatMap(item => item.tags))];
@@ -363,16 +348,12 @@
           parent.appendChild(label);
         }
 
-        categoryDiv.innerHTML = '';
-        tagDiv.innerHTML = '';
-        sourceDiv.innerHTML = '';
-
         categories.forEach(c => createCheckbox(categoryDiv, c, "category"));
         tags.forEach(t => createCheckbox(tagDiv, t, "tag"));
         sources.forEach(s => createCheckbox(sourceDiv, s, "source"));
       }
 
-      // Active Filters
+      // --- Get Active Filters ---
       function getActiveFilters() {
         const checked = [...document.querySelectorAll('input[type="checkbox"]:checked')];
         return {
@@ -382,95 +363,84 @@
         };
       }
 
-      // Apply Filters + Search + Sorting + Pagination
-      function applyAll() {
-        const { categories, tags, sources } = getActiveFilters();
-        const query = searchInput.value.toLowerCase();
+// --- Apply Filters + Search + Sorting + Pagination ---
+function applyAll() {
+  const { categories, tags, sources } = getActiveFilters();
+  const query = searchInput.value.toLowerCase();
 
-        let filtered = tableData.filter(item => {
-          const matchCategory = categories.length ? categories.includes(item.category) : true;
-          const matchTags = tags.length ? tags.some(tag => item.tags.includes(tag)) : true;
-          const matchSource = sources.length ? sources.includes(item.source) : true;
+  // Get date range input values
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
 
-          const combinedText = `${item.title} ${item.category} ${item.tags.join(" ")} ${item.source} ${item.channel}`.toLowerCase();
-          const matchSearch = combinedText.includes(query);
+  let filtered = tableData.filter(item => {
+    const matchCategory = categories.length ? categories.includes(item.category) : true;
+    const matchTags = tags.length ? tags.some(tag => item.tags.includes(tag)) : true;
+    const matchSource = sources.length ? sources.includes(item.source) : true;
 
-          return matchCategory && matchTags && matchSource && matchSearch;
-        });
+    // Date filter logic
+    if (dateFrom && new Date(item.reviewDate) < new Date(dateFrom)) return false;
+    if (dateTo && new Date(item.reviewDate) > new Date(dateTo)) return false;
 
-        if (currentSort.key) {
-          filtered.sort((a, b) => {
-            let valA = a[currentSort.key];
-            let valB = b[currentSort.key];
-            if (currentSort.key.toLowerCase().includes("date")) {
-              valA = new Date(valA);
-              valB = new Date(valB);
-            }
-            if (Array.isArray(valA)) valA = valA.join(", ");
-            if (Array.isArray(valB)) valB = valB.join(", ");
-            if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
-            if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
-            return 0;
-          });
-        }
-        const totalPages = Math.ceil(filtered.length / pageSize);
-        if(currentPage > totalPages) currentPage = totalPages || 1;
-        renderTable(filtered);
+    const combinedText = `${item.title} ${item.category} ${item.tags.join(" ")} ${item.source} ${item.channel}`.toLowerCase();
+    const matchSearch = combinedText.includes(query);
+
+    return matchCategory && matchTags && matchSource && matchSearch;
+  });
+
+  // Sorting
+  if (currentSort.key) {
+    filtered.sort((a, b) => {
+      let valA = a[currentSort.key];
+      let valB = b[currentSort.key];
+      if (currentSort.key.toLowerCase().includes("date")) {
+        valA = new Date(valA);
+        valB = new Date(valB);
       }
+      if (Array.isArray(valA)) valA = valA.join(", ");
+      if (Array.isArray(valB)) valB = valB.join(", ");
+      if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
+      if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 
-      // Reset all filters, search, sort, page
-      function resetAll() {
-        searchInput.value = "";
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-        currentSort = { key: null, order: 'asc' };
-        document.querySelectorAll("thead th").forEach(t => t.classList.remove("sort-asc", "sort-desc"));
-        currentPage = 1;
-        pageSize = parseInt(pageSizeSelect.value);
-        renderTable(tableData);
-      }
+  // Guard: Reset current page if it exceeds total pages
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  if (currentPage > totalPages) currentPage = totalPages || 1;
 
-      // Toggle filter dropdown
+  renderTable(filtered);
+}
+
+// --- Reset Everything ---
+function resetAll() {
+  searchInput.value = "";
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  currentSort = { key: null, order: 'asc' };
+  document.querySelectorAll("thead th").forEach(t => t.classList.remove("sort-asc", "sort-desc"));
+  currentPage = 1;
+  pageSize = parseInt(pageSizeSelect.value);
+
+  // Clear date inputs
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value = '';
+
+  renderTable(tableData);
+}
+
+      // --- Toggle Filters Dropdown ---
       filterBar.addEventListener('click', () => {
         const isVisible = filtersContainer.style.display === 'flex';
         filtersContainer.style.display = isVisible ? 'none' : 'flex';
         dropdownBtn.textContent = isVisible ? '▼' : '▲';
       });
 
-      // File upload handler
-      const mdUpload = document.getElementById('md-upload');
-      mdUpload.addEventListener('change', async () => {
-        const files = mdUpload.files;
-        if (files.length === 0) {
-          alert("Please select .md files or folder.");
-          return;
-        }
-        tableData = [];
+      // --- Event Listeners ---
+      filtersContainer.addEventListener("change", () => { currentPage = 1; applyAll(); });
+      searchInput.addEventListener("input", () => { currentPage = 1; applyAll(); });
+      resetBtn.addEventListener("click", resetAll);
+      pageSizeSelect.addEventListener("change", () => { pageSize = parseInt(pageSizeSelect.value); currentPage = 1; applyAll(); });
 
-        for (let file of files) {
-          if (file.name.endsWith(".md")) {
-            const text = await file.text();
-            const frontmatter = parseFrontmatter(text);
-
-            const title = frontmatter.title || extractTitle(text, file.name);
-            tableData.push({
-              title,
-              category: frontmatter.category || "Unknown",
-              tags: frontmatter.tags || [],
-              reviewDate: frontmatter.reviewDate || '',
-              postedDate: frontmatter.postedDate || '',
-              source: frontmatter.source || "Markdown",
-              channel: frontmatter.channel || file.name,
-              postLink: "#",
-              sourceLink: "#"
-            });
-          }
-        }
-        currentPage = 1;
-        renderTable(tableData);
-        populateFilters();
-      });
-
-      // Sorting functionality
+      // Sorting
       document.querySelectorAll("thead th[data-key]").forEach(th => {
         th.addEventListener("click", () => {
           const key = th.dataset.key;
@@ -486,46 +456,9 @@
         });
       });
 
-      // Utility functions
-      function extractTitle(mdText, fileName) {
-        const match = mdText.match(/^#\s+(.*)$/m);
-        return match ? match[1].trim() : fileName.replace('.md', '');
-      }
-
-      function parseFrontmatter(mdText) {
-        const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-        const match = mdText.match(frontmatterRegex);
-        if (!match) return {};
-        const yamlText = match[1];
-        const lines = yamlText.split('\n');
-        const metadata = {};
-        lines.forEach(line => {
-          const colonIndex = line.indexOf(':');
-          if (colonIndex > -1) {
-            const key = line.slice(0, colonIndex).trim();
-            let value = line.slice(colonIndex + 1).trim();
-            if (key.toLowerCase() === 'tags') {
-              value = value.split(',').map(t => t.trim());
-            }
-            metadata[key] = value;
-          }
-        });
-        return metadata;
-      }
-
-      // Initial rendering of empty table and filters
+      // --- Initial Render ---
       renderTable(tableData);
       populateFilters();
-
-      // Event listeners for filtering and pagination
-      filtersContainer.addEventListener("change", () => { currentPage = 1; applyAll(); });
-      searchInput.addEventListener("input", () => { currentPage = 1; applyAll(); });
-      resetBtn.addEventListener("click", resetAll);
-      pageSizeSelect.addEventListener("change", () => {
-        pageSize = parseInt(pageSizeSelect.value);
-        currentPage = 1;
-        applyAll();
-      });
     });
   </script>
 </body>
