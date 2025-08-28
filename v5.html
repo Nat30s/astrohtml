@@ -175,8 +175,7 @@
 
       <!-- File Upload for .md files -->
 <div class="file-upload" style="margin-bottom: 1rem;">
-  <input type="file" id="md-upload" accept=".md" multiple>
-  <button id="load-md-btn">Load Markdown Files</button>
+  <input type="file" id="md-upload" accept=".md" multiple webkitdirectory directory>
 </div>
 
       <!-- Collapsible Filter Bar -->
@@ -419,24 +418,22 @@ function extractTitle(mdText, fileName) {
 
 // Handle file upload
 const mdUpload = document.getElementById('md-upload');
-const loadMdBtn = document.getElementById('load-md-btn');
 
-loadMdBtn.addEventListener('click', async () => {
+mdUpload.addEventListener('change', async () => {
   const files = mdUpload.files;
   if (files.length === 0) {
-    alert("Please select .md files to load.");
+    alert("Please select .md files or folder.");
     return;
   }
-  tableData = []; // Clear previous
+  tableData = [];
 
   for (let file of files) {
-    if (file.type === "text/markdown" || file.name.endsWith(".md")) {
+    if (file.name.endsWith(".md")) {
       const text = await file.text();
       const title = extractTitle(text, file.name);
-      // For demonstration, fill other fields with placeholders
       tableData.push({
         title,
-        category: "Unknown", // or extract from .md if desired
+        category: "Unknown",
         tags: [],
         reviewDate: "",
         postedDate: "",
@@ -447,10 +444,11 @@ loadMdBtn.addEventListener('click', async () => {
       });
     }
   }
-  currentPage = 1; // Reset to first page
+  currentPage = 1;
   renderTable(tableData);
   populateFilters();
 });
+
 
 
       // --- Event Listeners ---
