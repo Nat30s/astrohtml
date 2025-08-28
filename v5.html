@@ -419,35 +419,54 @@ function extractTitle(mdText, fileName) {
 // Handle file upload
 const mdUpload = document.getElementById('md-upload');
 
-mdUpload.addEventListener('change', async () => {
-  const files = mdUpload.files;
-  if (files.length === 0) {
-    alert("Please select .md files or folder.");
-    return;
-  }
-  tableData = [];
 
-  for (let file of files) {
-    if (file.name.endsWith(".md")) {
-      const text = await file.text();
-      const title = extractTitle(text, file.name);
-      tableData.push({
-        title,
-        category: "Unknown",
-        tags: [],
-        reviewDate: "",
-        postedDate: "",
-        source: "Markdown",
-        channel: file.name,
-        postLink: "#",
-        sourceLink: "#"
-      });
+
+// Helper function to parse frontmatter metadata
+function parseFrontmatter(mdText) {
+  const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+  const match = mdText.match(frontmatterRegex);
+  if (!match) return {};
+  const yamlText = match[1];
+
+  const lines = yamlText.split('\n');
+  const metadata = {};
+  lines.forEach(line => {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > -1) {
+      const key = line.slice(0, colonIndex).trim();
+      let value = line.slice(colonIndex + 1).trim();
+
+      // Parse tags as array if comma-separated string
+      if (key.toLowerCase() === 'tags') {
+        value = value.split(',').map(t => t.trim());
+      }
+
+      metadata[key] = value;
     }
+  });
+  return metadata;
+}
+
+for (let file of files) {
+  if (file.name.endsWith(".md")) {
+    const text = await file.text();
+    const frontmatter = parseFrontmatter(text);
+
+    const title = frontmatter.title || extractTitle(text, file.name);
+    tableData.push({
+      title,
+      category: frontmatter.category || "Unknown",
+      tags: frontmatter.tags || [],
+      reviewDate: frontmatter.reviewDate || '',
+      postedDate: frontmatter.postedDate || '',
+      source: frontmatter.source || "Markdown",
+      channel: frontmatter.channel || file.name,
+      postLink: "#",
+      sourceLink: "#"
+    });
   }
-  currentPage = 1;
-  renderTable(tableData);
-  populateFilters();
-});
+}
+
 
 
 
